@@ -17,7 +17,7 @@ class MainNavigation extends StatefulWidget {
 
 class _MainNavigationState extends State<MainNavigation> {
   int _currentIndex = 0;
-  final List<Widget> _pages = [LaoMaSearchPage(), LaoMaSettingsPage()];
+  final List<Widget> _pages = [LaoMaSearchPage(), LaoMaUserPage()];
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -26,7 +26,7 @@ class _MainNavigationState extends State<MainNavigation> {
         selectedIndex: _currentIndex,
         onDestinationSelected: (int index) => setState(() => _currentIndex = index),
         destinations: const [
-          NavigationDestination(icon: Icon(Icons.search), label: '精准搜书'),
+          NavigationDestination(icon: Icon(Icons.search), label: '搜索发现'),
           NavigationDestination(icon: Icon(Icons.person), label: '个人中心'),
         ],
       ),
@@ -42,99 +42,99 @@ class LaoMaSearchPage extends StatefulWidget {
 class _LaoMaSearchPageState extends State<LaoMaSearchPage> {
   final TextEditingController _input = TextEditingController();
   List<Map<String, String>> _results = [];
-  List<String> _suggestions = []; 
   bool _isLoading = false;
 
-  // 联网联想功能
-  Future<void> _getSuggestions(String query) async {
-    if (query.isEmpty) { setState(() => _suggestions = []); return; }
-    try {
-      final res = await Dio().get("https://suggestion.baidu.com/5a?wd=$query");
-      String data = res.data.toString();
-      if (data.contains("s:[")) {
-        String s = data.split("s:[")[1].split("]")[0];
-        List<String> list = s.split(",").map((e) => e.replaceAll('"', '')).toList();
-        setState(() => _suggestions = list.take(6).toList());
-      }
-    } catch (e) { print("联想失败: $e"); }
-  }
-
-  // 联网搜书功能
   Future<void> _search(String key) async {
     if (key.isEmpty) return;
-    setState(() { _isLoading = true; _results = []; _suggestions = []; FocusScope.of(context).unfocus(); });
-    final prefs = await SharedPreferences.getInstance();
-    // 默认内置老马给的站
-    List<String> defaultS = ['shuyinfm.com', 'huanting.cc', 'ting78.com', 'tingsm.com', 'ting74.org', 'ting27.com', 'tingshu168.com', 'leting8.com', 'missevan.com'];
-    List<String> sources = prefs.getStringList('all_sources') ?? defaultS;
-    List<String> disabled = prefs.getStringList('disabled_sources') ?? [];
-    List<String> active = sources.where((s) => !disabled.contains(s)).toList();
-
+    setState(() { _isLoading = true; _results = []; FocusScope.of(context).unfocus(); });
+    
     try {
-      String siteQuery = active.isEmpty ? "" : active.map((s) => "site:$s").join(" OR ");
-      final res = await Dio().get("https://www.baidu.com/s?wd=$siteQuery $key", options: Options(headers: {'User-Agent': 'Mozilla/5.0'}));
+      final prefs = await SharedPreferences.getInstance();
+      List<String> sources = prefs.getStringList('all_sources') ?? ['ting78.com', 'shuyinfm.com', 'huanting.cc'];
+      List<String> disabled = prefs.getStringList('disabled_sources') ?? [];
+      List<String> active = sources.where((s) => !disabled.contains(s)).toList();
+
+      if (active.isEmpty) {
+        throw "请先在个人中心开启书源";
+      }
+
+      String siteQuery = active.map((s) => "site:$s").join(" OR ");
+      // 增加超时设置，防止无限等待
+      final dio = Dio(BaseOptions(connectTimeout: Duration(seconds: 10)));
+      final res = await dio.get("https://www.baidu.com/s?wd=$siteQuery $key", 
+          options: Options(headers: {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'}));
+      
       final doc = parse(res.data);
       final items = doc.querySelectorAll('div.result.c-container');
-      setState(() => _results = items.map((e) => {
-        'title': e.querySelector('h3.t > a')?.text ?? '听书资源',
-        'url': e.querySelector('h3.t > a')?.attributes['href'] ?? '',
-      }).where((m) => m['url']!.isNotEmpty).toList());
-    } catch (e) { print("搜索错误: $e"); } finally { setState(() => _isLoading = false); }
+      
+      setState(() {
+        _results = items.map((e) => {
+          'title': e.querySelector('h3.t > a')?.text ?? '未知资源',
+          'url': e.querySelector('h3.t > a')?.attributes['href'] ?? '',
+        }).where((m) => m['url']!.isNotEmpty).toList();
+      });
+      
+      if (_results.isEmpty) throw "未搜到资源，请尝试更换关键词或书源";
+
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("提示: $e")));
+    } finally {
+      setState(() => _isLoading = false);
+    }
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Color(0xFFF8F9FA),
-      appBar: AppBar(title: Text('老马聚合听书 Pro')),
+      appBar: AppBar(title: Text('老马精准听书 Pro')),
       body: Column(
         children: [
           Padding(
             padding: EdgeInsets.all(15),
-            child: Column(children: [
-              TextField(
-                controller: _input, onChanged: _getSuggestions,
-                decoration: InputDecoration(hintText: "输入书名...", suffixIcon: IconButton(icon: Icon(Icons.send, color: Colors.green), onPressed: () => _search(_input.text))),
-                onSubmitted: _search,
+            child: TextField(
+              controller: _input,
+              decoration: InputDecoration(
+                hintText: "输入书名搜精准资源...",
+                suffixIcon: IconButton(icon: Icon(Icons.send, color: Colors.green), onPressed: () => _search(_input.text)),
+                border: OutlineInputBorder(borderRadius: BorderRadius.circular(30)),
+                filled: true, fillColor: Colors.white,
               ),
-              if (_suggestions.isNotEmpty)
-                Container(
-                  width: double.infinity, margin: EdgeInsets.only(top: 5),
-                  decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(10), boxShadow: [BoxShadow(color: Colors.black12, blurRadius: 5)]),
-                  child: Column(children: _suggestions.map((s) => ListTile(title: Text(s, style: TextStyle(color: Colors.green)), dense: true, onTap: () { _input.text = s; _search(s); })).toList()),
-                ),
-            ]),
-          ),
-          Expanded(child: _isLoading ? Center(child: CircularProgressIndicator()) : ListView.builder(
-            itemCount: _results.length,
-            itemBuilder: (context, index) => Card(
-              margin: EdgeInsets.symmetric(horizontal: 15, vertical: 5),
-              child: ListTile(
-                title: Text(_results[index]['title']!, style: TextStyle(fontSize: 14)),
-                trailing: Icon(Icons.play_circle, color: Colors.green),
-                onTap: () => Navigator.push(context, MaterialPageRoute(builder: (context) => Scaffold(
-                  appBar: AppBar(title: Text("正在阅读/听书")),
-                  body: WebViewWidget(controller: WebViewController()..setJavaScriptMode(JavaScriptMode.unrestricted)..loadRequest(Uri.parse(_results[index]['url']!))),
-                ))),
-              ),
+              onSubmitted: _search,
             ),
-          )),
+          ),
+          Expanded(
+            child: _isLoading 
+              ? Center(child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [CircularProgressIndicator(), SizedBox(height: 10), Text("全网书源搜寻中...码数：q13978984")]))
+              : ListView.builder(
+                  itemCount: _results.length,
+                  itemBuilder: (context, index) => Card(
+                    margin: EdgeInsets.symmetric(horizontal: 15, vertical: 5),
+                    child: ListTile(
+                      title: Text(_results[index]['title']!, style: TextStyle(fontSize: 14)),
+                      trailing: Icon(Icons.play_circle_fill, color: Colors.green),
+                      onTap: () => Navigator.push(context, MaterialPageRoute(builder: (context) => Scaffold(
+                        appBar: AppBar(title: Text("正在播放")),
+                        body: WebViewWidget(controller: WebViewController()..setJavaScriptMode(JavaScriptMode.unrestricted)..loadRequest(Uri.parse(_results[index]['url']!))),
+                      ))),
+                    ),
+                  ),
+                ),
+          ),
         ],
       ),
     );
   }
 }
 
-class LaoMaSettingsPage extends StatefulWidget {
+class LaoMaUserPage extends StatefulWidget {
   @override
-  _LaoMaSettingsPageState createState() => _LaoMaSettingsPageState();
+  _LaoMaUserPageState createState() => _LaoMaUserPageState();
 }
 
-class _LaoMaSettingsPageState extends State<LaoMaSettingsPage> {
+class _LaoMaUserPageState extends State<LaoMaUserPage> {
   List<String> _sources = [];
   List<String> _disabled = [];
-  final TextEditingController _addController = TextEditingController();
-
   @override
   void initState() { super.initState(); _load(); }
   _load() async {
@@ -144,30 +144,19 @@ class _LaoMaSettingsPageState extends State<LaoMaSettingsPage> {
       _disabled = prefs.getStringList('disabled_sources') ?? [];
     });
   }
-  _save() async {
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setStringList('all_sources', _sources);
-    await prefs.setStringList('disabled_sources', _disabled);
-  }
-
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: Text("老马个人中心")),
+      appBar: AppBar(title: Text("个人中心")),
       body: ListView(children: [
-        Padding(padding: EdgeInsets.all(16), child: Text("管理书源（勾选开启搜索）", style: TextStyle(color: Colors.grey))),
         ..._sources.map((s) => CheckboxListTile(
           title: Text(s), value: !_disabled.contains(s), activeColor: Colors.green,
-          onChanged: (v) { setState(() { v! ? _disabled.remove(s) : _disabled.add(s); }); _save(); },
-          secondary: IconButton(icon: Icon(Icons.delete), onPressed: () { setState(() { _sources.remove(s); }); _save(); }),
+          onChanged: (v) async {
+            setState(() { v! ? _disabled.remove(s) : _disabled.add(s); });
+            final prefs = await SharedPreferences.getInstance();
+            await prefs.setStringList('disabled_sources', _disabled);
+          },
         )).toList(),
-        Padding(padding: EdgeInsets.all(15), child: Row(children: [
-          Expanded(child: TextField(controller: _addController, decoration: InputDecoration(hintText: "添加新域名"))),
-          IconButton(icon: Icon(Icons.add_circle, color: Colors.green), onPressed: () {
-            if (_addController.text.isNotEmpty) { setState(() => _sources.add(_addController.text)); _addController.clear(); _save(); }
-          }),
-        ])),
-        ListTile(leading: Icon(Icons.contact_support), title: Text("微信客服：q13978984")),
       ]),
     );
   }
