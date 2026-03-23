@@ -9,14 +9,13 @@ jobs:
         with:
           channel: 'stable'
       - run: |
-          # 1. 自动生成工程
+          # 1. 强行初始化安卓地基
           flutter create . --platforms android --project-name laoma_tingshu
           
-          # 2. 强力开启联网权限（解决搜索不了的核心）
+          # 2. 暴力破解联网墙：在安卓配置文件里强行插入上网许可
           sed -i '/<application/i <uses-permission android:name="android.permission.INTERNET"/>' android/app/src/main/AndroidManifest.xml
           
-          # 3. 暴力纠错：强制定位 main.dart
-          # 不管你在根目录还是在 lib 下，都给老子归位！
+          # 3. 强制归位：不管代码在哪，都给老子塞进 lib/main.dart
           mkdir -p lib
           find . -maxdepth 2 -name "main.dart" -exec cp {} lib/main.dart \;
           
