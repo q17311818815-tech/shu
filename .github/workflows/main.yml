@@ -9,13 +9,21 @@ jobs:
         with:
           channel: 'stable'
       - run: |
+          # 1. 强制生成安卓地基
           flutter create . --platforms android --project-name laoma_tingshu
-          # 开启联网权限补丁
+          
+          # 2. 联网权限开启
           sed -i '/<application/i <uses-permission android:name="android.permission.INTERNET"/>' android/app/src/main/AndroidManifest.xml
-          # 确保代码在 lib 文件夹
-          rm -rf lib
+          
+          # 3. 终极文件搬运：把你能找到的所有 main.dart 都试一遍，直到填满 lib/main.dart
           mkdir -p lib
-          cp main.dart lib/main.dart || true
+          if [ -f "lib/main.dart" ]; then
+            echo "代码已在lib目录"
+          elif [ -f "main.dart" ]; then
+            cp main.dart lib/main.dart
+            echo "已从根目录搬运代码"
+          fi
+          
       - run: flutter pub get
       - run: flutter build apk --release
       - name: Upload APK
