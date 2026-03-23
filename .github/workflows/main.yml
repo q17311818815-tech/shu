@@ -11,16 +11,17 @@ jobs:
           channel: 'stable'
           
       - run: |
-          # 1. 自动生成安卓工程的地基
+          # 1. 强制生成安卓环境
           flutter create . --platforms android --project-name laoma_tingshu
           
-          # 2. 核心补丁：强制开启 App 联网权限（解决不能搜的问题）
+          # 2. 核心：开启联网权限
           sed -i '/<application/i <uses-permission android:name="android.permission.INTERNET"/>' android/app/src/main/AndroidManifest.xml
           
-          # 3. 整理代码：把你的 main.dart 挪到它该去的地方
-          rm -rf lib
+          # 3. 关键修正：确保 lib 文件夹里一定有 main.dart
+          # 无论代码在根目录还是在旧的 lib 里，都强行挪到正确位置
           mkdir -p lib
-          cp main.dart lib/main.dart || true
+          [ -f main.dart ] && cp main.dart lib/main.dart
+          [ -f lib/main.dart ] && echo "代码已就位"
           
       - run: flutter pub get
       - run: flutter build apk --release
