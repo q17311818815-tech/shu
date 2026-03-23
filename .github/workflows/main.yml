@@ -5,27 +5,19 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      
       - uses: subosito/flutter-action@v2
         with:
           channel: 'stable'
-          
       - run: |
-          # 1. 强制生成安卓环境
           flutter create . --platforms android --project-name laoma_tingshu
-          
-          # 2. 核心：开启联网权限
+          # 开启联网权限补丁
           sed -i '/<application/i <uses-permission android:name="android.permission.INTERNET"/>' android/app/src/main/AndroidManifest.xml
-          
-          # 3. 关键修正：确保 lib 文件夹里一定有 main.dart
-          # 无论代码在根目录还是在旧的 lib 里，都强行挪到正确位置
+          # 确保代码在 lib 文件夹
+          rm -rf lib
           mkdir -p lib
-          [ -f main.dart ] && cp main.dart lib/main.dart
-          [ -f lib/main.dart ] && echo "代码已就位"
-          
+          cp main.dart lib/main.dart || true
       - run: flutter pub get
       - run: flutter build apk --release
-      
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
