@@ -34,7 +34,6 @@ class _MainNavigationState extends State<MainNavigation> {
   }
 }
 
-// --- 首页：智能聚合搜索 + 实时联想 ---
 class LaoMaSearchPage extends StatefulWidget {
   @override
   _LaoMaSearchPageState createState() => _LaoMaSearchPageState();
@@ -43,10 +42,9 @@ class LaoMaSearchPage extends StatefulWidget {
 class _LaoMaSearchPageState extends State<LaoMaSearchPage> {
   final TextEditingController _input = TextEditingController();
   List<Map<String, String>> _results = [];
-  List<String> _suggestions = []; // 实时联想词
+  List<String> _suggestions = [];
   bool _isLoading = false;
 
-  // 获取联想词逻辑
   Future<void> _getSuggestions(String query) async {
     if (query.isEmpty) { setState(() => _suggestions = []); return; }
     try {
@@ -60,13 +58,18 @@ class _LaoMaSearchPageState extends State<LaoMaSearchPage> {
     } catch (e) {}
   }
 
-  // 执行聚合搜索
   Future<void> _search(String key) async {
     if (key.isEmpty) return;
     setState(() { _isLoading = true; _results = []; _suggestions = []; FocusScope.of(context).unfocus(); });
     
     final prefs = await SharedPreferences.getInstance();
-    List<String> allSources = prefs.getStringList('all_sources') ?? ['ting78.com', 'shuyinfm.com', 'youts.net', 'wdts.top'];
+    // 默认内置老马给的所有书源域名
+    List<String> defaultSources = [
+      'shuyinfm.com', 'huanting.cc', 'ting78.com', 'tingsm.com', 'ting74.org', 
+      'ting27.com', 'tingshu168.com', 'leting8.com', 'missevan.com',
+      'xs5300.com', 'paoshu8.info'
+    ];
+    List<String> allSources = prefs.getStringList('all_sources') ?? defaultSources;
     List<String> disabled = prefs.getStringList('disabled_sources') ?? [];
     List<String> activeSources = allSources.where((s) => !disabled.contains(s)).toList();
 
@@ -102,7 +105,7 @@ class _LaoMaSearchPageState extends State<LaoMaSearchPage> {
                   controller: _input,
                   onChanged: _getSuggestions,
                   decoration: InputDecoration(
-                    hintText: "输入书名，点击飞机搜索",
+                    hintText: "输入书名，搜索老马书源",
                     prefixIcon: Icon(Icons.search),
                     suffixIcon: IconButton(icon: Icon(Icons.send, color: Colors.green), onPressed: () => _search(_input.text)),
                     filled: true, fillColor: Colors.white,
@@ -125,10 +128,10 @@ class _LaoMaSearchPageState extends State<LaoMaSearchPage> {
               itemBuilder: (context, index) => Card(
                 margin: EdgeInsets.symmetric(horizontal: 15, vertical: 5),
                 child: ListTile(
-                  leading: Icon(Icons.headset, color: Colors.green),
+                  leading: Icon(Icons.menu_book, color: Colors.green),
                   title: Text(_results[index]['title']!, style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold)),
                   onTap: () => Navigator.push(context, MaterialPageRoute(builder: (context) => Scaffold(
-                    appBar: AppBar(title: Text("纯净播放")),
+                    appBar: AppBar(title: Text("正在阅读/听书")),
                     body: WebViewWidget(controller: WebViewController()..setJavaScriptMode(JavaScriptMode.unrestricted)..loadRequest(Uri.parse(_results[index]['url']!))),
                   ))),
                 ),
@@ -141,7 +144,6 @@ class _LaoMaSearchPageState extends State<LaoMaSearchPage> {
   }
 }
 
-// --- 个人中心：完整管理功能 ---
 class LaoMaSettingsPage extends StatefulWidget {
   @override
   _LaoMaSettingsPageState createState() => _LaoMaSettingsPageState();
@@ -158,7 +160,10 @@ class _LaoMaSettingsPageState extends State<LaoMaSettingsPage> {
   _loadData() async {
     final prefs = await SharedPreferences.getInstance();
     setState(() {
-      _sources = prefs.getStringList('all_sources') ?? ['ting78.com', 'shuyinfm.com', 'youts.net', 'wdts.top'];
+      _sources = prefs.getStringList('all_sources') ?? [
+        'shuyinfm.com', 'huanting.cc', 'ting78.com', 'tingsm.com', 'ting74.org', 
+        'ting27.com', 'tingshu168.com', 'leting8.com', 'missevan.com'
+      ];
       _disabled = prefs.getStringList('disabled_sources') ?? [];
     });
   }
@@ -173,7 +178,7 @@ class _LaoMaSettingsPageState extends State<LaoMaSettingsPage> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Color(0xFFF8F9FA),
-      appBar: AppBar(title: Text("个人中心"), centerTitle: true),
+      appBar: AppBar(title: Text("老马个人中心"), centerTitle: true),
       body: ListView(
         children: [
           Container(
@@ -184,12 +189,13 @@ class _LaoMaSettingsPageState extends State<LaoMaSettingsPage> {
               Text("老马私藏", style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
             ]),
           ),
-          Padding(padding: EdgeInsets.all(16), child: Text("书源管理（勾选开启搜索，长按可删除）", style: TextStyle(color: Colors.grey, fontSize: 12))),
+          Padding(padding: EdgeInsets.all(16), child: Text("书源管理（勾选开启，长按删除）", style: TextStyle(color: Colors.grey, fontSize: 12))),
           ..._sources.map((s) => CheckboxListTile(
             title: Text(s),
             value: !_disabled.contains(s),
+            activeColor: Colors.green,
             onChanged: (val) { setState(() { val! ? _disabled.remove(s) : _disabled.add(s); }); _saveData(); },
-            secondary: IconButton(icon: Icon(Icons.delete, color: Colors.red[300]), onPressed: () { setState(() { _sources.remove(s); }); _saveData(); }),
+            secondary: IconButton(icon: Icon(Icons.delete_outline), onPressed: () { setState(() { _sources.remove(s); }); _saveData(); }),
           )).toList(),
           Padding(
             padding: EdgeInsets.all(15),
@@ -200,8 +206,7 @@ class _LaoMaSettingsPageState extends State<LaoMaSettingsPage> {
               }),
             ]),
           ),
-          ListTile(leading: Icon(Icons.contact_support), title: Text("客服微信：q13978984")),
-          ListTile(leading: Icon(Icons.info), title: Text("版本：v2.5.0 正式版")),
+          ListTile(leading: Icon(Icons.contact_support), title: Text("微信客服：q13978984")),
         ],
       ),
     );
