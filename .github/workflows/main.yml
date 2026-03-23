@@ -10,12 +10,18 @@ jobs:
           channel: 'stable'
       - run: |
           flutter create . --platforms android --project-name laoma_tingshu
-          # 【核心补丁】强行插入联网权限
+          
+          # 【核心修复1】强行注入联网申请，让 App 安装后必弹权限
           sed -i '/<application/i <uses-permission android:name="android.permission.INTERNET"/>' android/app/src/main/AndroidManifest.xml
-          # 【核心补丁】强制允许访问 http 网站（解决搜不到的核心）
+          sed -i '/<application/i <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE"/>' android/app/src/main/AndroidManifest.xml
+          
+          # 【核心修复2】允许访问所有 HTTP 听书网站
           sed -i 's/<application/<application android:usesCleartextTraffic="true"/' android/app/src/main/AndroidManifest.xml
+          
+          # 强制搬运代码
           mkdir -p lib
           find . -maxdepth 2 -name "main.dart" -exec cp {} lib/main.dart \;
+          
       - run: flutter pub get
       - run: flutter build apk --release
       - name: Upload APK
