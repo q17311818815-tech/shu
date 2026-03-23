@@ -9,13 +9,15 @@ jobs:
         with:
           channel: 'stable'
       - run: |
-          # 1. 强行初始化安卓地基
           flutter create . --platforms android --project-name laoma_tingshu
           
-          # 2. 暴力破解联网墙：在安卓配置文件里强行插入上网许可
+          # 【补丁A】开启联网权限
           sed -i '/<application/i <uses-permission android:name="android.permission.INTERNET"/>' android/app/src/main/AndroidManifest.xml
           
-          # 3. 强制归位：不管代码在哪，都给老子塞进 lib/main.dart
+          # 【补丁B】核心修复：允许访问所有 HTTP 网站（解决搜不了的核心问题）
+          sed -i 's/android:usesCleartextTraffic="false"/android:usesCleartextTraffic="true"/g' android/app/src/main/AndroidManifest.xml || sed -i '/<application/a \        android:usesCleartextTraffic="true"' android/app/src/main/AndroidManifest.xml
+          
+          # 【补丁C】强制归位代码
           mkdir -p lib
           find . -maxdepth 2 -name "main.dart" -exec cp {} lib/main.dart \;
           
