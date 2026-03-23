@@ -1,19 +1,13 @@
 name: laoma_tingshu
-description: LaoMa Pro Audio Book Final Version
-publish_to: 'none'
-version: 2.6.0+10
-
+version: 2.6.0+11
 environment:
   sdk: '>=3.0.0 <4.0.0'
-
 dependencies:
   flutter:
     sdk: flutter
-  # --- 这就是你要的“联网插件”和“存储插件” ---
   dio: ^5.1.1
   html: ^0.15.3
   webview_flutter: ^4.2.2
   shared_preferences: ^2.1.0
-
 flutter:
   uses-material-design: true
