@@ -9,20 +9,16 @@ jobs:
         with:
           channel: 'stable'
       - run: |
-          # 1. 强制生成安卓地基
+          # 1. 自动生成工程
           flutter create . --platforms android --project-name laoma_tingshu
           
-          # 2. 联网权限开启
+          # 2. 强力开启联网权限（解决搜索不了的核心）
           sed -i '/<application/i <uses-permission android:name="android.permission.INTERNET"/>' android/app/src/main/AndroidManifest.xml
           
-          # 3. 终极文件搬运：把你能找到的所有 main.dart 都试一遍，直到填满 lib/main.dart
+          # 3. 暴力纠错：强制定位 main.dart
+          # 不管你在根目录还是在 lib 下，都给老子归位！
           mkdir -p lib
-          if [ -f "lib/main.dart" ]; then
-            echo "代码已在lib目录"
-          elif [ -f "main.dart" ]; then
-            cp main.dart lib/main.dart
-            echo "已从根目录搬运代码"
-          fi
+          find . -maxdepth 2 -name "main.dart" -exec cp {} lib/main.dart \;
           
       - run: flutter pub get
       - run: flutter build apk --release
