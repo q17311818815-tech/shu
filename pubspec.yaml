@@ -1,14 +1,15 @@
 name: laoma_tingshu
-description: Pro Audio Book Final
+description: LaoMa Pro Audio Book Ultimate Version
 publish_to: 'none'
-version: 2.1.0+5
+version: 2.5.0+7
 environment:
   sdk: '>=3.0.0 <4.0.0'
 dependencies:
   flutter:
     sdk: flutter
-  dio: ^5.1.1
-  html: ^0.15.3
-  webview_flutter: ^4.2.2
+  dio: ^5.1.1 # 联网搜书
+  html: ^0.15.3 # 解析网页
+  webview_flutter: ^4.2.2 # 内置播放器
+  shared_preferences: ^2.1.0 # 记住书源设置
 flutter:
   uses-material-design: true
